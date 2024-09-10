@@ -26,9 +26,15 @@ files = SC+'_'+FC # for saving
 ###
 def struc(matrix):
     """
-    This function takes an adjacency matrix and returns it back.
+    This function takes an adjacency matrix and returns it after log transformation.
     """
-    return matrix
+    # Create a mask for non-zero elements
+    mask = matrix > 0
+
+    # Apply log only to non-zero elements
+    log_matrix = np.zeros_like(matrix)
+    log_matrix[mask] = np.log(matrix[mask])
+    return log_matrix
     
 def short_path(matrix):
     """
@@ -86,6 +92,7 @@ def get_predictor_vectors(mats, node, scope):
                     net_indices.append(i) ##if that network is also in the label of the region being checked, 
                     #and it's not the same region (self connection), add that region (its index) to the list of indices to be used for analysis scope
     net_indices = np.unique(net_indices) #avoid duplicates
+    
     result = [] #store the vectors
     for mat in mats: #loop over the matrices
         column_vector = mat[:, node] #extract the column of the region by node number as index
@@ -118,7 +125,7 @@ def get_predicted_vector(mat, node, scope):
     nets = ["Vis", "SomMot", "DorsAttn", "SalVentAttn", "Limbic", "Cont", "Default", "-"] #for subcortex I am using "-" as it's not in the schaefer labels and only apears in all the Tian
     
     if scope == 'between':
-        net_indices = [node] #node number as list to be used index and later add to it more indices, if between, add seld connection to be removed
+        net_indices = [node] #to be used index and later add to it more indices, if between, add seld connection to be removed
     else:
         net_indices = []    
 
@@ -145,7 +152,7 @@ def get_predicted_vector(mat, node, scope):
         print("scope does not match") 
     return column_vector
 
-def predict_function(predictors, functional):
+def linear_reg(predictors, predicted):
     """this function takes a list of structural connectivity vectors and a functional connectivity vector and performs a linrear regression to prdict functional from strctural.
     it returns the squered R between the real functional vector and the predicted functional vector.
     :param predictors: list of structural connectivity vectors
@@ -156,12 +163,14 @@ def predict_function(predictors, functional):
     predictors_arr = np.transpose(np.array(predictors)) #dimentions to fit
     scaler = StandardScaler()
     predictors_scaled = scaler.fit_transform(predictors_arr) #standarise the predictors
-    model.fit(predictors_scaled, functional) #use linear regression model to predict functional from structural
-    r_squared = model.score(predictors_scaled, functional) #get the R2 between observed and predicted   
-    N = len(functional) #no. of data points (regions)
+        
+    model.fit(predictors_scaled, predicted) #use linear regression model to predict functional from structural        
+    r_squared = model.score(predictors_scaled, predicted) #get the R2 between observed and predicted   
+
+    N = len(predicted) #no. of data points (regions)
     p = predictors_scaled.shape[1] #no. of regressors (IV)
-    adjusted_r_squared = 1 - ((1 - r_squared) * (N - 1) / (N - p - 1)) #compute the adjusted R2
-    return adjusted_r_squared
+    adjusted_r_squared = 1 - (((1 - r_squared) * (N - 1)) / (N - p - 1))
+    return adjusted_r_squared, r_squared
 
 def couple(FC_mats, SC_mats, euc, SC_measures, scope):
     """
@@ -184,22 +193,19 @@ def couple(FC_mats, SC_mats, euc, SC_measures, scope):
 
     n_nodes = np.shape(FC_mats)[1] #the number of brain regions
     adj_r2_values = [] #empty list to store the adjusted R2 values
-    
+
     #loop over regions to get the R2 values
     for node in range(n_nodes): #loop over brain regions
         predictors = get_predictor_vectors(mats, node, scope) #use a function to create a list of coulmn vectors to be used as predictors (SC)
         func_vec = get_predicted_vector(FC_mats, node, scope) #use a function to create a coulmn vectors to be used as predicted (FC)
         
-        model = LinearRegression() 
-        predictors_arr = np.transpose(np.array(predictors)) #dimentions to fit
-        scaler = StandardScaler()
-        predictors_scaled = scaler.fit_transform(predictors_arr) #standarise the predictors
-        model.fit(predictors_scaled, func_vec) #use linear regression model to predict functional from structural
-        r_squared = model.score(predictors_scaled, func_vec) #get the R2 between observed and predicted   
-        N = len(func_vec) #no. of data points (regions)
-        p = predictors_scaled.shape[1] #no. of regressors (IV)
-        adjusted_r_squared = 1 - ((1 - r_squared) * (N - 1) / (N - p - 1)) #compute the adjusted R2
-
+        adjusted_r_squared, r_squared = linear_reg(predictors, func_vec)
+        
+        if scope=='within':
+            adj_r2_values.append(r_squared)
+        else:
+            adj_r2_values.append(adjusted_r_squared)# Append the adjusted R2 value for the current region
+    
     return adj_r2_values
 
 #loop over participants to stroe for each the regional SC-FC coupling values
@@ -237,6 +243,6 @@ hc_adj_r2 = pd.DataFrame(hc_node_adj_r2)
 bd_adj_r2= pd.DataFrame(bd_node_adj_r2)
 
 #save as csv
-hc_adj_r2.to_csv(path + 'results/' + files +'/'+ scope +'/hc_'+ files + '_no_euc.csv', index=False)
-bd_adj_r2.to_csv(path + 'results/' + files +'/'+ scope +'/bd_'+ files + '_no_euc.csv', index=False)
+hc_adj_r2.to_csv(path + 'results/' + files +'/'+ scope +'/hc_'+ files + '.csv', index=False)
+bd_adj_r2.to_csv(path + 'results/' + files +'/'+ scope +'/bd_'+ files + '.csv', index=False)
 
