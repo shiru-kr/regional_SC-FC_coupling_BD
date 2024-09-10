@@ -58,8 +58,8 @@ def communicability(matrix, normalize=True):
     """
     mati = np.array(matrix, dtype=float) #make sure its float numpy
     if normalize:
-        norm = np.linalg.eigvals(mati).max() #finding the largest eigenvalue of the matrix
-        nmati = mati / norm #normalise by them
+        eigval = np.linalg.eigvals(mati).max() #finding the largest eigenvalue of the matrix
+        nmati = mati / eigval #normalise by it
 
     return expm(nmati) #return the matrix exponential (communicability)
 
