@@ -64,7 +64,7 @@ def communicability(matrix, normalize=True):
     return expm(nmati) #return the matrix exponential (communicability)
 
 
-def get_predictor_vectors(mats, node, scope):
+def predictors_vec(mats, node, scope):
     """this function takes a list of matrices and a number and return for each matrix a 1D coulmn with the values for that number index.
     depands of the scope, the vector will contain whole brain connections (to all regions), within network connections (to regions in the same network),
     between network connections (to all regions that are not in the same network), or cortical connections (only to cortical regions). 
@@ -114,7 +114,7 @@ def get_predictor_vectors(mats, node, scope):
             print("scope does not match") 
     return result
 
-def get_predicted_vector(mat, node, scope):
+def predicted_vec(mat, node, scope):
     """this function takes a matrix and a number and return a 1D coulmn with the values for that number index
     :param mat: a functional matrix
     :param node: number to use as index
@@ -196,8 +196,8 @@ def couple(FC_mats, SC_mats, euc, SC_measures, scope):
 
     #loop over regions to get the R2 values
     for node in range(n_nodes): #loop over brain regions
-        predictors = get_predictor_vectors(mats, node, scope) #use a function to create a list of coulmn vectors to be used as predictors (SC)
-        func_vec = get_predicted_vector(FC_mats, node, scope) #use a function to create a coulmn vectors to be used as predicted (FC)
+        predictors = predictors_vec(mats, node, scope) #use a function to create a list of coulmn vectors to be used as predictors (SC)
+        func_vec = predicted_vec(FC_mats, node, scope) #use a function to create a coulmn vectors to be used as predicted (FC)
         
         adjusted_r_squared, r_squared = linear_reg(predictors, func_vec)
         
